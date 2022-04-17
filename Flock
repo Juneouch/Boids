@@ -1,0 +1,94 @@
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+public class Flock : MonoBehaviour
+{
+    public FlockAgent Prefab;
+    List<FlockAgent> agents = new List<FlockAgent>();
+    public FlockBehaviour behaviour;
+
+    public int startingCount = 100;
+    public Vector3 spawnBounds;
+    // const 表示常量，第一次赋值后就不能改变
+    const float AgentDensity = 0.08f;
+
+
+    [Range(0.1f, 100f)]
+    public float driveFactor = 10f;
+    [Range(0.1f, 100f)]
+    public float maxSpeed = 5f;
+    [Range(0.1f, 10f)]
+    public float neighborRadius = 1.5f;
+    [Range(0f, 1f)]
+    public float avoidanceRadiusMultiplier = 0.5f;
+
+    float squareMaxSpeed;
+    float squareNeighborRadius;
+    float squareAvoidanceRadius;
+    //属性常常有一个对应的字段
+    public float SquareAvoidanceRadius { get { return squareAvoidanceRadius; } }
+
+    void Start()
+    {
+    }
+   private void InstantiateBoids()
+    {
+        squareMaxSpeed = maxSpeed * maxSpeed;
+        squareNeighborRadius = neighborRadius * neighborRadius;
+        squareAvoidanceRadius = squareNeighborRadius * avoidanceRadiusMultiplier * avoidanceRadiusMultiplier;
+        //Vector3.Magnitude
+        //instantiate the prefab 生成N个prefab在一个球体之内
+        for (int i = 0; i < startingCount; i++)
+        {
+            //instantiate (gameobject,vector 3 position,rotation,)
+            //var randomVector = Random.insideUnitCircle;
+            //randomVector = new Vector3(randomVector.x * spawnBounds.x, randomVector.y * spawnBounds.y, randomVector.z * spawnBounds.z);
+
+
+            FlockAgent newAgent = Instantiate(
+                Prefab,
+                Random.insideUnitSphere * startingCount * AgentDensity, //Returns a random point inside or on a sphere with radius 1.0(Read Only).
+                Quaternion.Euler(Vector3.forward * Random.Range(0f, 360f)),
+                transform
+                );
+            newAgent.name = "Agent " + i;
+            newAgent.Initialize(this);
+            agents.Add(newAgent);
+        }
+    }
+    void Update()
+    {
+        foreach (FlockAgent agent in agents)
+        {
+            List<Transform> context = GetNearbyObjects(agent);
+            Vector3 move =behaviour.CalculateMove(agent, context, this);
+            move *= driveFactor;
+            //Clamp the VectorMagnitude in a range
+            move = Vector3.ClampMagnitude(move, maxSpeed);
+            /*
+            if (move.sqrMagnitude > squareMaxSpeed)
+            {
+                move = move.normalized * maxSpeed;
+            }*/
+            agent.Move(move);
+            //Debug.DrawLine(agent.transform.position, agent.transform.position + move, Color.red, 2f);
+        }
+    }
+    List<Transform> GetNearbyObjects(FlockAgent agent)
+    {
+        //新创建一个Context 的list，最终返回的context 存到 getnearbyobject 中
+        List<Transform> context = new List<Transform>();
+        //******Collider[] Returns an array with all colliders touching or inside the sphere.
+        Collider[] contextColliders = Physics.OverlapSphere(agent.transform.position, neighborRadius);
+        foreach (Collider c in contextColliders)
+        {
+            if (c != agent.AgentCollider)
+            {
+                context.Add(c.transform);
+            }
+        }
+        return context;
+       // print(context);
+    }
+}
